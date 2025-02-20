@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      #reset-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        margin-top: 8px;
+      }
+    </style>
+</head>
+<body class="flex items-center justify-center h-screen bg-gray-900">
+
+    <div class="bg-gray-800 p-8 rounded-lg shadow-lg w-96 text-white">
+        <h2 class="text-2xl font-bold text-center mb-4">Welcome</h2>
+        <p class="text-gray-400 text-center mb-6">Sign in to access the map</p>
+
+        <input id="email" type="email" placeholder="Email" class="w-full p-2 mb-2 border border-gray-600 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <input id="password" type="password" placeholder="Password" class="w-full p-2 mb-4 border border-gray-600 bg-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+
+        <!-- One Button for Login / Signup -->
+        <button id="auth-btn" class="w-full bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600 transition-all">Sign In / Log In</button>
+
+        <div class="text-center my-4 text-gray-500">OR</div>
+
+        
+        <!-- Google Sign-In Button -->
+<button id="google-signin-btn" class="w-full bg-red-500 text-white p-2 rounded-lg flex items-center justify-center gap-2 hover:bg-red-600 transition-all">
+
+  Sign in with Google
+</button>
+
+<!-- Separate Reset Password Button -->
+<button id="reset-btn" class="mt-2 text-sm text-blue-400 hover:text-blue-300">
+  Forgot Password?
+</button>
+    
+    </div>
+
+    <!-- Firebase Auth Script -->
+    <script type="module" src="firebaseauth.js"></script>
+    
+    
+    <script type="module">
+        import { emailSignIn, emailSignUp, googleSignIn, resetPassword, userSignOut, onAuthStateChanged, auth } from "./firebaseauth.js";
+      
+        // Example: Attach event listeners to your buttons
+       // In the auth button handler
+document.getElementById("auth-btn").addEventListener("click", async () => {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  try {
+    await emailSignIn(email, password);
+    // Remove alert and redirect immediately
+    window.location.href = "pollution1.html";
+  } catch (error) {
+    if (error.code === "auth/user-not-found") {
+      try {
+        await emailSignUp(email, password);
+        window.location.href = "pollution1.html"; // Direct redirect
+      } catch (signUpError) {
+        alert("Sign-Up Error: " + signUpError.message);
+      }
+    } else {
+      alert("Error: " + error.message);
+    }
+  }
+});
+
+// In Google sign-in handler
+document.getElementById("google-signin-btn").addEventListener("click", async () => {
+  try {
+    await googleSignIn();
+    window.location.href = "pollution1.html"; // Direct redirect
+  } catch (error) {
+    alert("Google Sign-In Error: " + error.message);
+  }
+});
+      
+        // Optionally, set up a password reset button:
+        document.getElementById("reset-btn")?.addEventListener("click", async () => {
+          const email = document.getElementById("email").value;
+          if (!email) {
+            alert("Please enter your email to reset your password.");
+            return;
+          }
+          try {
+            await resetPassword(email);
+            alert("Password reset email sent!");
+          } catch (error) {
+            alert("Reset Error: " + error.message);
+          }
+        });
+      
+        // Monitor authentication state
+        onAuthStateChanged(auth, (user) => {
+          if (user) {
+            console.log("User is logged in:", user);
+          } else {
+            console.log("No user is logged in.");
+          }
+        });
+      </script>
+      
+
+</body>
+</html>

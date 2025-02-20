@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trash Can Finder</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDT75xqJDYAY24bjP2IBLH2LPFREJyFOoA&libraries=places,geometry&callback=initMap" async defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        #map-container {
+            width: 100%;
+            height: 500px;
+            position: relative;
+        }
+        #map { height: 100%; width: 70%; }
+        #directions-panel { 
+            width: 30%; 
+            height: 500px;
+            overflow-y: auto;
+            background: #1f2937;
+            color: white;
+            padding: 1rem;
+        }
+        #directions-panel { 
+            width: 30%; height: 500px;
+            background: #1f2937; color: white;
+            padding: 1rem; overflow-y: auto;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-white">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold">Find Nearest Trash Can</h1>
+            <div class="flex gap-4">
+                <button id="theme-toggle" class="px-4 py-2 bg-gray-800 rounded-lg">🌙 Toggle Theme</button>
+                <button id="logout-btn" class="px-4 py-2 bg-red-500 rounded-lg">Logout</button>
+            </div>
+        </div>
+
+        <!-- Map Container -->
+        <div class="flex gap-4 mb-6">
+            <div id="map-container" class="rounded-lg shadow-xl">
+                <div id="map" class="rounded-lg"></div>
+               
+                <div id="directions-panel" class="w-[30%] h-[500px] bg-gray-800 text-white p-4 rounded-lg overflow-y-auto">
+                    <div class="text-lg font-bold mb-4">Directions</div>
+                    <div id="steps-container"></div>
+                </div>
+            </div>
+            
+
+       
+
+        <!-- Controls -->
+       <!-- Controls -->
+<div class="mt-6 flex flex-col md:flex-row gap-4 items-center">
+    <p id="distance" class="text-lg text-center md:text-right">Loading location...</p>
+    <button id="startJourney" class="px-6 py-2 bg-blue-500 rounded-lg hover:bg-blue-600 ">Start Journey</button>
+</div>
+
+
+    <script>
+        // Initialize core variables
+        let map, userMarker, directionsService, directionsDisplay;
+        let watchId, nearestBin;
+        const trashBins = [
+            { lat: 45.5655, lng: -73.2228 },
+            { lat: 45.5627, lng: -73.2186 },
+            { lat: 45.5599, lng: -73.2149 },
+            { lat: 45.5592, lng: -73.2140 },
+            { lat: 45.5669, lng: -73.1822 }
+        ];
+
+        // Map initialization
+        function initMap() {
+            console.log('Initializing map...');
+            
+            // Create map instance
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 45.567991, lng: -73.204693 },
+                zoom: 15,
+                mapTypeControl: false,
+                streetViewControl: false
+            });
+
+            // Initialize directions services
+            directionsService = new google.maps.DirectionsService();
+            directionsDisplay = new google.maps.DirectionsRenderer({
+                map: map,
+                panel: document.getElementById('directions-panel'),
+                suppressMarkers: true
+            });
+
+            // Add trash can markers
+            trashBins.forEach(bin => {
+                new google.maps.Marker({
+                    position: bin,
+                    map: map,
+                    icon: {
+                        url: 'https://img.icons8.com/color/48/trash--v1.png',
+                        scaledSize: new google.maps.Size(32, 32)
+                    },
+                    title: 'Trash Can'
+                });
+            });
+
+            // Start tracking user
+            startGeoTracking();
+        }
+
+        // Geolocation tracking
+        function startGeoTracking() {
+            if (navigator.geolocation) {
+                watchId = navigator.geolocation.watchPosition(
+                    position => {
+                        const pos = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+                        
+                        // Update user marker
+                        if (!userMarker) {
+                            userMarker = new google.maps.Marker({
+                                position: pos,
+                                map: map,
+                                icon: {
+                                    path: google.maps.SymbolPath.CIRCLE,
+                                    scale: 8,
+                                    fillColor: '#4285F4',
+                                    fillOpacity: 0.8,
+                                    strokeWeight: 2,
+                                    strokeColor: 'white'
+                                }
+                            });
+                        } else {
+                            userMarker.setPosition(pos);
+                        }
+
+                        // Update nearest bin
+                        nearestBin = findNearestBin(pos);
+                        document.getElementById('distance').textContent = 
+                            `Nearest trash can: ${haversineDistance(pos, nearestBin).toFixed(2)} km`;
+
+                        // Auto-center map
+                        map.panTo(pos);
+                    },
+                    error => {
+                        console.error('Geolocation error:', error);
+                        document.getElementById('distance').textContent = 
+                            'Enable location access to use this feature';
+                    },
+                    { enableHighAccuracy: true, timeout: 5000 }
+                );
+            }
+        }
+
+        // Route calculation
+        function calculateRoute() {
+            if (!userMarker || !nearestBin) return;
+
+            directionsService.route({
+                origin: userMarker.getPosition(),
+                destination: nearestBin,
+                travelMode: 'WALKING'
+            }, (response, status) => {
+                if (status === 'OK') {
+                    directionsDisplay.setDirections(response);
+                } else {
+                    console.error('Directions request failed:', status);
+                }
+            });
+        }
+
+        // Helper functions
+        function findNearestBin(position) {
+            return trashBins.reduce((prev, curr) => {
+                const prevDist = haversineDistance(position, prev);
+                const currDist = haversineDistance(position, curr);
+                return currDist < prevDist ? curr : prev;
+            });
+        }
+
+        function haversineDistance(coord1, coord2) {
+            const R = 6371e3; // Earth radius in meters
+            const φ1 = coord1.lat * Math.PI/180;
+            const φ2 = coord2.lat * Math.PI/180;
+            const Δφ = (coord2.lat - coord1.lat) * Math.PI/180;
+            const Δλ = (coord2.lng - coord1.lng) * Math.PI/180;
+
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            
+            return R * c / 1000; // Return distance in kilometers
+        }
+
+        // Event listeners
+        document.getElementById('startJourney').addEventListener('click', calculateRoute);
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            map.setOptions({
+                styles: document.body.classList.contains('dark-mode') ? [
+                    // Add your dark mode styles here
+                ] : []
+            });
+        });
+
+        // Cleanup
+        window.addEventListener('beforeunload', () => {
+            if (watchId) navigator.geolocation.clearWatch(watchId);
+        });
+    </script>
+
+    <!-- Firebase Integration -->
+    <script type="module">
+        import { auth, signOut, onAuthStateChanged } from './firebaseauth.js';
+
+        onAuthStateChanged(auth, user => {
+            if (!user) window.location.href = 'index.html';
+            else if (!window.google) {
+                console.error('Google Maps failed to load');
+                document.getElementById('distance').textContent = 
+                    'Map loading failed - please check your internet connection';
+            }
+        });
+
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            signOut(auth).catch(error => console.error('Logout error:', error));
+        });
+    </script>
+</body>
+</html>
