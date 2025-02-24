@@ -32,7 +32,7 @@ const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 
 // Export the auth and Firestore instances for use in other modules
-export { auth, db, onAuthStateChanged, signOut };
+export { auth, db, onAuthStateChanged };
 
 // Email/Password Sign In
 export async function emailSignIn(email, password) {
